@@ -135,14 +135,19 @@ const addProductPost = async (req, res) => {
       locationId,
     } = req.body;
 
-    // Convert string booleans to actual booleans
+    // Convert string booleans/numbers to proper types
     isNegotiable = isNegotiable === 'true' || isNegotiable === true;
     canDeliver = canDeliver === 'true' || canDeliver === true;
 
-    // Handle empty strings for UUIDs (Postgres doesn't like empty strings for UUID columns)
     const cleanCategoryId = (categoryId && categoryId !== "") ? categoryId : null;
     const cleanSubcategoryId = (subcategoryId && subcategoryId !== "") ? subcategoryId : null;
     const cleanLocationId = (locationId && locationId !== "") ? locationId : null;
+
+    let cleanPrice = parseFloat(price);
+    if (isNaN(cleanPrice)) cleanPrice = 0;
+
+    let cleanStock = parseInt(stock);
+    if (isNaN(cleanStock)) cleanStock = 0;
 
     // OPTIONAL: Try to find a business ID if it exists, but don't fail if not found.
     // This supports both "Business" and "Individual" sellers.
@@ -162,15 +167,13 @@ const addProductPost = async (req, res) => {
     const videos = files.filter((f) => f.mimetype.startsWith("video/"));
 
     if (images.length === 0) {
-      console.log("❌ addProductPost: No images found in request");
-      return res.status(400).json({ message: "At least one image is required" });
+      return res.status(400).json({ message: "Atleast one image is required" });
     }
 
-    if (images.length > 5) {
-      console.log("❌ addProductPost: Too many images", images.length);
+    if (images.length > 4) {
       return res
         .status(400)
-        .json({ message: "Maximum of 5 images is allowed" });
+        .json({ message: "Maximum of 4 images is allowed" });
     }
 
     if (videos.length > 1) {
@@ -190,12 +193,12 @@ const addProductPost = async (req, res) => {
       cleanSubcategoryId,
       title,
       description,
-      price,
+      cleanPrice,
       currency,
       condition,
       isNegotiable,
       canDeliver,
-      stock,
+      cleanStock,
       attributes ? JSON.stringify(attributes) : "{}",
       cleanLocationId,
     ]);
@@ -227,8 +230,6 @@ const addProductPost = async (req, res) => {
         ]
       );
     }
-
-    console.log("✅ Product created with ID:", listingId);
 
     const productWithMedia = await pool.query(
       `
